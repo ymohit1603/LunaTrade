@@ -3,20 +3,25 @@ import { useDispatch } from 'react-redux';
 import '../App.css';
 import config from '../config.json';
 
-import { loadNetwork, loadProvider,loadAccount, loadToken } from '../store/interactions';
+import { loadNetwork, loadProvider,loadAccount, loadTokens, loadExchange } from '../store/interactions';
 
 function App() {
 
   const dispatch = useDispatch();
 
   const loadBlockchainData = async () => {
-    await loadAccount(dispatch)
+    await loadAccount(dispatch,provider)
 
     const provider=loadProvider(dispatch)
     
-    const  chainId  = await loadNetwork(provider, dispatch);
+    const chainId = await loadNetwork(provider, dispatch);
 
-    await loadToken(provider,config[chainId].DApp.address,dispatch)
+    await loadAccount(dispatch,provider)  
+    
+
+    await loadTokens(provider, [config[chainId].DApp.address, config[chainId].mETH.address], dispatch)
+    
+    await loadExchange(provider, config[chainId].exchange, dispatch);
 
   }
 
