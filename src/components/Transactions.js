@@ -48,7 +48,7 @@ const Transactions = () => {
             </div>
           </div>
 
-          {!myOpenOrders || myOpenOrders.length === 0 ? (
+          {!myOpenOrders || (myOpenOrders&&myOpenOrders.length === 0) ? (
             <Banner text='No Open Orders'/>
           ) : (
             <table>

@@ -16,7 +16,7 @@ const Trades = () => {
         <h2>Trades</h2>
       </div>
 
-      {!filledOrders || filledOrders.length === 0 ? (
+      {!filledOrders || (filledOrders&&filledOrders.length === 0) ? (
         <Banner text='No Transactions' />
       ): (
         <table>
