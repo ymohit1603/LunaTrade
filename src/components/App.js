@@ -6,6 +6,13 @@ import config from '../config.json';
 import { loadNetwork, loadProvider,loadAccount, loadTokens, loadExchange } from '../store/interactions';
 import Navbar from './Navbar';
 import Markets from './Markets';
+import Transactions from './Transactions';
+import Trades from './Trades';
+import Order from './Order';
+import OrderBook from './OrderBook';
+import PriceChart from './PriceChart';
+import Balance from './Balance';
+import Alert from './Alert';
 
 function App() {
 
@@ -48,27 +55,27 @@ function App() {
       <main className='exchange grid'>
         <section className='exchange__section--left grid'>
 
-          <Markets/>
+        <Markets />
 
-          {/* Balance */}
+        <Balance />
 
-          {/* Order */}
+        <Order />
 
         </section>
         <section className='exchange__section--right grid'>
 
-          {/* PriceChart */}
+        <PriceChart />
 
-          {/* Transactions */}
+        <Transactions />
 
-          {/* Trades */}
+        <Trades />
 
-          {/* OrderBook */}
+        <OrderBook />
 
         </section>
-      </main>
+        </main>
 
-      {/* Alert */}
+        <Alert />
 
     </div>
   ); 
