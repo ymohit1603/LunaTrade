@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux'
 
-import sort from '../assets/sort.svg'
+import sort from '../assets/assets/sort.svg'
 
 import { filledOrdersSelector } from '../store/selectors'
 

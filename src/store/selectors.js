@@ -90,32 +90,32 @@ const decorateMyOpenOrder = (order, tokens) => {
   })
 }
 
-const decorateOrder = (order, tokens) => {
-  let token0Amount, token1Amount
+// const decorateOrder = (order, tokens) => {
+//   let token0Amount, token1Amount
 
-  // Note: DApp should be considered token0, mETH is considered token1
-  // Example: Giving mETH in exchange for DApp
-  if (order.tokenGive === tokens[1].address) {
-    token0Amount = order.amountGive // The amount of DApp we are giving
-    token1Amount = order.amountGet // The amount of mETH we want...
-  } else {
-    token0Amount = order.amountGet // The amount of DApp we want
-    token1Amount = order.amountGive // The amount of mETH we are giving...
-  }
+//   // Note: DApp should be considered token0, mETH is considered token1
+//   // Example: Giving mETH in exchange for DApp
+//   if (order.tokenGive === tokens[1].address) {
+//     token0Amount = order.amountGive // The amount of DApp we are giving
+//     token1Amount = order.amountGet // The amount of mETH we want...
+//   } else {
+//     token0Amount = order.amountGet // The amount of DApp we want
+//     token1Amount = order.amountGive // The amount of mETH we are giving...
+//   }
 
-  // Calculate token price to 5 decimal places
-  const precision = 100000
-  let tokenPrice = (token1Amount / token0Amount)
-  tokenPrice = Math.round(tokenPrice * precision) / precision
+//   // Calculate token price to 5 decimal places
+//   const precision = 100000
+//   let tokenPrice = (token1Amount / token0Amount)
+//   tokenPrice = Math.round(tokenPrice * precision) / precision
 
-  return ({
-    ...order,
-    token1Amount: ethers.utils.formatUnits(token1Amount, "ether"),
-    token0Amount: ethers.utils.formatUnits(token0Amount, "ether"),
-    tokenPrice,
-    formattedTimestamp: moment.unix(order.timestamp).format('h:mm:ssa d MMM D')
-  })
-}
+//   return ({
+//     ...order,
+//     token1Amount: ethers.utils.formatUnits(token1Amount, "ether"),
+//     token0Amount: ethers.utils.formatUnits(token0Amount, "ether"),
+//     tokenPrice,
+//     formattedTimestamp: moment.unix(order.timestamp).format('h:mm:ssa d MMM D')
+//   })
+// }
 
 
 // ------------------------------------------------------------------------------
@@ -244,61 +244,77 @@ export const orderBookSelector = createSelector(
   openOrders,
   tokens,
   (orders, tokens) => {
-    if (!tokens[0] || !tokens[1]) { return }
+    if (!tokens[0] || !tokens[1]) return null;
 
     // Filter orders by selected tokens
-    orders = orders.filter((o) => o.tokenGet === tokens[0].address || o.tokenGet === tokens[1].address)
-    orders = orders.filter((o) => o.tokenGive === tokens[0].address || o.tokenGive === tokens[1].address)
+    orders = orders.filter(
+      (o) => o && (o.tokenGet === tokens[0].address || o.tokenGet === tokens[1].address) &&
+             (o.tokenGive === tokens[0].address || o.tokenGive === tokens[1].address)
+    );
 
-    // Decorate orders
-    orders = decorateOrderBookOrders(orders, tokens)
+    // Decorate orders, filtering out any nulls from decoration
+    orders = decorateOrderBookOrders(orders, tokens).filter(order => order !== null);
 
     // Group orders by "orderType"
-    orders = groupBy(orders, 'orderType')
+    const groupedOrders = groupBy(orders, 'orderType');
 
-    // Fetch buy orders
-    const buyOrders = get(orders, 'buy', [])
+    // Fetch and sort buy orders by descending token price
+    const buyOrders = get(groupedOrders, 'buy', []).sort((a, b) => b.tokenPrice - a.tokenPrice);
 
-    // Sort buy orders by token price
-     orders = {
-        ...orders,
-        buyOrders: buyOrders.sort((a, b) => b.tokenPrice - a.tokenPrice)
-      }
+    // Fetch and sort sell orders by descending token price
+    const sellOrders = get(groupedOrders, 'sell', []).sort((a, b) => b.tokenPrice - a.tokenPrice);
 
-    // Fetch sell orders
-    const sellOrders = get(orders, 'sell', [])
-
-    // Sort sell orders by token price
-    orders = {
-      ...orders,
-      sellOrders: sellOrders.sort((a, b) => b.tokenPrice - a.tokenPrice)
-    }
-
-    return orders
+    return { buyOrders, sellOrders };
   }
-)
+);
 
 const decorateOrderBookOrders = (orders, tokens) => {
-  return(
-    orders.map((order) => {
-      order = decorateOrder(order, tokens)
-      order = decorateOrderBookOrder(order, tokens)
-      return(order)
-    })
-  )
-}
+  return orders.map((order) => {
+    if (!order) return null;
+
+    let decoratedOrder = decorateOrder(order, tokens);
+    if (!decoratedOrder) return null;
+
+    decoratedOrder = decorateOrderBookOrder(decoratedOrder, tokens);
+    return decoratedOrder;
+  });
+};
 
 const decorateOrderBookOrder = (order, tokens) => {
-  const orderType = order.tokenGive === tokens[1].address ? 'buy' : 'sell'
+  if (!order.tokenGive) return null;
 
-  return({
+  const orderType = order.tokenGive === tokens[1].address ? 'buy' : 'sell';
+
+  return {
     ...order,
     orderType,
-    orderTypeClass: (orderType === 'buy' ? GREEN : RED),
-    orderFillAction: (orderType === 'buy' ? 'sell' : 'buy')
-  })
-}
+    orderTypeClass: orderType === 'buy' ? GREEN : RED,
+    orderFillAction: orderType === 'buy' ? 'sell' : 'buy'
+  };
+};
 
+const decorateOrder = (order, tokens) => {
+  let token0Amount, token1Amount;
+
+  if (order.tokenGive === tokens[1].address) {
+    token0Amount = order.amountGive;
+    token1Amount = order.amountGet;
+  } else {
+    token0Amount = order.amountGet;
+    token1Amount = order.amountGive;
+  }
+
+  const precision = 100000;
+  const tokenPrice = token1Amount && token0Amount ? Math.round((token1Amount / token0Amount) * precision) / precision : 0;
+
+  return {
+    ...order,
+    token1Amount: token1Amount ? ethers.utils.formatUnits(token1Amount, "ether") : '0',
+    token0Amount: token0Amount ? ethers.utils.formatUnits(token0Amount, "ether") : '0',
+    tokenPrice,
+    formattedTimestamp: order.timestamp ? moment.unix(order.timestamp).format('h:mm:ssa d MMM D') : 'N/A'
+  };
+};
 
 // ------------------------------------------------------------------------------
 // PRICE CHART

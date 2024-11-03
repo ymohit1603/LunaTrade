@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import '../App.css';
 import config from '../config.json';
 
-import { loadNetwork, loadProvider,loadAccount, loadTokens, loadExchange } from '../store/interactions';
+import { loadNetwork, loadProvider,loadAccount, loadTokens, loadExchange, loadAllOrders, subscribeToEvents } from '../store/interactions';
 import Navbar from './Navbar';
 import Markets from './Markets';
 import Transactions from './Transactions';
@@ -14,71 +14,79 @@ import PriceChart from './PriceChart';
 import Balance from './Balance';
 import Alert from './Alert';
 
-function App() {
 
-  const dispatch = useDispatch();
+function App() {
+  const dispatch = useDispatch()
 
   const loadBlockchainData = async () => {
-    await loadAccount(dispatch,provider)
+    // Connect Ethers to blockchain
+    const provider = loadProvider(dispatch)
 
-    const provider=loadProvider(dispatch)
-    
-    const chainId = await loadNetwork(provider, dispatch);
+    // Fetch current network's chainId (e.g. hardhat: 31337, kovan: 42)
+    const chainId = await loadNetwork(provider, dispatch)
 
-     window.ethereum.on('chainChanged', () => {
+    // Reload page when network changes
+    window.ethereum.on('chainChanged', () => {
       window.location.reload()
     })
 
+    // Fetch current account & balance from Metamask when changed
     window.ethereum.on('accountsChanged', () => {
       loadAccount(provider, dispatch)
     })
 
-    await loadAccount(dispatch,provider)  
-    
+    // Load token smart contracts
+    const DApp = config[chainId].DApp
+    const mETH = config[chainId].mETH
+    await loadTokens(provider, [DApp.address, mETH.address], dispatch)
 
-    await loadTokens(provider, [config[chainId].DApp.address, config[chainId].mETH.address], dispatch)
-    
-    await loadExchange(provider, config[chainId].exchange, dispatch);
+    // Load exchange smart contract
+    const exchangeConfig = config[chainId].exchange
+    const exchange = await loadExchange(provider, exchangeConfig.address, dispatch)
 
+    // Fetch all orders: open, filled, cancelled
+    loadAllOrders(provider, exchange, dispatch)
+
+    // Listen to events
+    subscribeToEvents(exchange, dispatch)
   }
 
   useEffect(() => {
-    loadBlockchainData();
+    loadBlockchainData()
   })
-
 
   return (
     <div>
 
-      <Navbar/>
+      <Navbar />
 
       <main className='exchange grid'>
         <section className='exchange__section--left grid'>
 
-        <Markets />
+          <Markets />
 
-        <Balance />
+          <Balance />
 
-        <Order />
+          <Order />
 
         </section>
         <section className='exchange__section--right grid'>
 
-        <PriceChart />
+          <PriceChart />
 
-        <Transactions />
+          <Transactions />
 
-        <Trades />
+          <Trades />
 
-        <OrderBook />
+          <OrderBook />
 
         </section>
-        </main>
+      </main>
 
-        <Alert />
+      <Alert />
 
     </div>
-  ); 
+  );
 }
 
 export default App;
